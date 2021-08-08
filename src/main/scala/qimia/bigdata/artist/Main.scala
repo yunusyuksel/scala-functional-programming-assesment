@@ -1,10 +1,6 @@
 package qimia.bigdata.artist
 
 import java.io.{BufferedWriter, FileWriter}
-import scala.collection.mutable.ListBuffer
-import scala.io.Source
-
-
 
 object Main {
   def main(args:Array[String]) = {
@@ -12,45 +8,24 @@ object Main {
     task2()
   }
 
+  def readFile[A](path:String,headerFlag:Boolean,seperator:Char,f:Array[String] => A):List[A] = {
+    val io = Util.readFile(path)
+    val lines = if(headerFlag) io.getLines.drop(1) else io.getLines
+    val func = (x:String) => x split seperator
+    val result = lines.map((line) => {
+      val foo =  func andThen f
+      foo(line)
+    }).toList
+    io.close()
+
+    result
+  }
 
   def task1(): Unit ={
-    var io = Util.readFile("unique_artists.csv")
 
-    val artistLines = io.getLines
-    val artists =
-      artistLines
-        .map((line) => {
-          val parsed = line.split('|')
-          Artist(parsed(0),parsed(3))
-        }).toList
-
-    io.close()
-
-
-
-    io = Util.readFile("artist_tag.csv")
-
-
-    val artistTagLines = io.getLines
-
-    val artistTags = artistTagLines
-      .map((line) => {
-        val parsed = line.split(",")
-        ArtistTag(parsed(0),parsed(1))
-      }).toList
-
-
-    io.close()
-
-
-
-    io = Util.readFile("artist_term.csv")
-
-    val artistTerms = io.getLines
-      .map((line) => {
-        val parsed = line.split(",")
-        ArtistTerm(parsed(0),parsed(1))
-      }).toList
+    val artists =readFile("unique_artists.csv",false,'|',Artist.parse)
+    val artistTags = readFile("artist_tag.csv",headerFlag=true,',',ArtistTag.parse)
+    val artistTerms = readFile("artist_term.csv",headerFlag = true,',',ArtistTerm.parse)
 
     val groupedArtistTags: Map[String,List[ArtistTag]] = artistTags.groupBy(_.id)
     val groupedArtistTerms: Map[String,List[ArtistTerm]] = artistTerms.groupBy(_.id)
@@ -61,44 +36,26 @@ object Main {
 
      artists
       .foreach((artist) => {
-        val tags = groupedArtistTags.get(artist.id).getOrElse(Nil)
+        val tags = groupedArtistTags.getOrElse(artist.id, Nil)
           .map((tag) => tag.tagName).mkString(",")
-        val terms = groupedArtistTerms.get(artist.id).getOrElse(Nil)
+        val terms = groupedArtistTerms.getOrElse(artist.id, Nil)
           .map((term) => term.term).mkString(",")
-
-        val csvOutput = s"${artist.id};${artist.name.trim};${tags.trim};${terms.trim}\n"
+        val csvOutput = s"${artist.id};${artist.name};${tags};${terms}\n"
         outputFile.write(csvOutput)
 
       })
 
-
   }
 
   def task2() = {
-
-    var io = Util.readFile("tracks_per_year.csv")
+    val tracks = readFile("tracks_per_year.csv",false,'|',ArtistSong.parse)
+    val groupedTracks = tracks.groupBy(track => (track.year,track.artistName)).toList
     val outputFile = new BufferedWriter(new FileWriter("result2.csv"))
-
-    val tracks = io.getLines
-      .map((line) => {
-        val parsed = line.split('|')
-        ArtistSong(parsed(0),parsed(1),parsed(2),parsed(3))
-      }).toList
-    io.close()
-
-
-    val groupedTracks = tracks.groupBy(track => (track.year,track.artistName))
-    groupedTracks.foreach(track => {
-      val line = s"${track._1._2},${track._1._1},${track._2.length}\n"
-      outputFile.write(line)
-    })
-
-
-
+    groupedTracks.sortBy(_._2.length)
+    .map{
+      case (x,y) => s"${x._2},${x._1},${y.length}\n"
+    }.foreach(outputFile.write)
   }
-
-
-
 
 
 }
