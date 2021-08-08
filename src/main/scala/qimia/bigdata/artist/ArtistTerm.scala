@@ -1,8 +1,6 @@
 package qimia.bigdata.artist
 
-case class ArtistTerm(id:String,term:String) {
-
-}
+case class ArtistTerm(id:String,term:String)
 
 object ArtistTerm{
   def parse(parsed:Array[String]) = {
